@@ -148,9 +148,10 @@ interface ParsedTaskCardProps {
   task: ParsedTask;
   categories: { id: string; name: string; emoji: string }[];
   onChange: (id: string, updates: Partial<ParsedTask>) => void;
+  onAdd?: (task: ParsedTask) => void;
 }
 
-function ParsedTaskCard({ task, categories, onChange }: ParsedTaskCardProps) {
+function ParsedTaskCard({ task, categories, onChange, onAdd }: ParsedTaskCardProps) {
   const [editingTitle, setEditingTitle] = useState(false);
 
   if (task.skip) return null;
@@ -228,12 +229,23 @@ function ParsedTaskCard({ task, categories, onChange }: ParsedTaskCardProps) {
           </SelectContent>
         </Select>
 
-        <button
-          onClick={() => onChange(task.id, { skip: true })}
-          className="ml-auto h-7 px-2 text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 rounded-lg hover:bg-destructive/10"
-        >
-          <X className="w-3 h-3" /> Skip
-        </button>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button
+            onClick={() => onChange(task.id, { skip: true })}
+            className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1 rounded-lg hover:bg-destructive/10"
+          >
+            <X className="w-3 h-3" /> Skip
+          </button>
+          {onAdd && (
+            <Button
+              size="sm"
+              className="h-7 rounded-lg text-xs bg-primary hover:bg-primary/90 text-white gap-1"
+              onClick={() => onAdd(task)}
+            >
+              <Plus className="w-3 h-3" /> Add
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -417,22 +429,13 @@ export default function BrainDumpPage() {
               <div className="space-y-2">
                 {parsedTasks.map((task) =>
                   task.skip ? null : (
-                    <div key={task.id} className="relative group">
-                      <ParsedTaskCard
-                        task={task}
-                        categories={categories}
-                        onChange={handleChangeTask}
-                      />
-                      <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button
-                          size="sm"
-                          className="h-7 rounded-lg text-xs bg-primary hover:bg-primary/90 text-white gap-1"
-                          onClick={() => handleAddOne(task)}
-                        >
-                          <Plus className="w-3 h-3" /> Add
-                        </Button>
-                      </div>
-                    </div>
+                    <ParsedTaskCard
+                      key={task.id}
+                      task={task}
+                      categories={categories}
+                      onChange={handleChangeTask}
+                      onAdd={handleAddOne}
+                    />
                   )
                 )}
               </div>
