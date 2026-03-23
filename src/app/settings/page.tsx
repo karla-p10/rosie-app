@@ -51,54 +51,77 @@ function CategoryCard({ cat }: { cat: Category }) {
 
   if (editing) {
     return (
-      <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-primary bg-primary/5">
-        {/* Emoji input */}
-        <Input
-          value={editEmoji}
-          onChange={(e) => setEditEmoji(e.target.value)}
-          className="w-14 rounded-lg text-center text-lg px-1"
-          maxLength={2}
-        />
-        {/* Name input */}
-        <Input
-          value={editName}
-          onChange={(e) => setEditName(e.target.value)}
-          className="flex-1 rounded-lg"
-          placeholder="Category name"
-          autoFocus
-          onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
-        />
-        {/* Color dots */}
-        <div className="flex gap-1.5 flex-wrap max-w-[120px]">
-          {COLOR_OPTIONS.map((c) => (
-            <button
-              key={c}
-              title={c}
-              onClick={() => setEditColor(c)}
-              className={cn(
-                "w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
-                COLOR_MAP[c].dot,
-                editColor === c ? "border-foreground scale-110" : "border-transparent"
-              )}
+      <div className="rounded-xl border-2 border-primary bg-primary/5 p-4 space-y-3">
+        {/* Row 1: Emoji + Name */}
+        <div className="flex items-center gap-3">
+          <div className="space-y-1 shrink-0">
+            <Label className="text-xs font-medium text-muted-foreground">Emoji</Label>
+            <Input
+              value={editEmoji}
+              onChange={(e) => setEditEmoji(e.target.value)}
+              className="w-14 h-10 rounded-xl text-center text-lg"
+              maxLength={2}
             />
-          ))}
+          </div>
+          <div className="space-y-1 flex-1 min-w-0">
+            <Label className="text-xs font-medium text-muted-foreground">Name</Label>
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              className="rounded-xl h-10"
+              placeholder="Category name"
+              autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); if (e.key === "Escape") setEditing(false); }}
+            />
+          </div>
         </div>
-        {/* Save / Cancel */}
-        <button onClick={handleSave} className="text-emerald-600 hover:text-emerald-700">
-          <Check className="w-4 h-4" />
-        </button>
-        <button onClick={() => setEditing(false)} className="text-muted-foreground hover:text-foreground">
-          <X className="w-4 h-4" />
-        </button>
+
+        {/* Row 2: Color picker */}
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Color</Label>
+          <div className="flex gap-2 flex-wrap">
+            {COLOR_OPTIONS.map((c) => (
+              <button
+                key={c}
+                title={c}
+                onClick={() => setEditColor(c)}
+                className={cn(
+                  "w-7 h-7 rounded-full transition-all border-2",
+                  COLOR_MAP[c].dot,
+                  editColor === c ? "border-foreground scale-110 ring-2 ring-primary/20" : "border-transparent"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Row 3: Actions */}
+        <div className="flex gap-2 pt-1">
+          <Button
+            size="sm"
+            className="rounded-xl bg-primary text-white flex-1"
+            onClick={handleSave}
+          >
+            <Check className="w-4 h-4 mr-1" /> Save
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl flex-1"
+            onClick={() => setEditing(false)}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:border-primary/30 transition-colors group">
+    <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card active:bg-muted/50 transition-colors">
       {/* Badge preview */}
       <span className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium min-w-[80px] justify-center",
+        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
         style.bg, style.text
       )}>
         <span>{cat.emoji}</span>
@@ -111,25 +134,25 @@ function CategoryCard({ cat }: { cat: Category }) {
       {/* Usage count */}
       <span className="text-xs text-muted-foreground flex-1">{usageCount} task{usageCount !== 1 ? "s" : ""}</span>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Actions — always visible on mobile */}
+      <div className="flex items-center gap-1">
         <Button
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-          onClick={() => { setEditing(true); setConfirmDelete(false); }}
+          className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+          onClick={() => { setEditing(true); setEditName(cat.name); setEditEmoji(cat.emoji); setEditColor(cat.color); setConfirmDelete(false); }}
         >
-          <Pencil className="w-3.5 h-3.5" />
+          <Pencil className="w-4 h-4" />
         </Button>
         {confirmDelete ? (
           <div className="flex items-center gap-1">
-            <span className="text-xs text-destructive font-medium">
-              {usageCount > 0 ? `${usageCount} tasks affected` : "Delete?"}
+            <span className="text-[11px] text-destructive font-medium whitespace-nowrap">
+              {usageCount > 0 ? `${usageCount} tasks!` : "Delete?"}
             </span>
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 px-2 rounded-lg text-destructive hover:bg-destructive/10 text-xs"
+              className="h-8 px-2 rounded-lg text-destructive hover:bg-destructive/10 text-xs"
               onClick={handleDelete}
             >
               Yes
@@ -137,7 +160,7 @@ function CategoryCard({ cat }: { cat: Category }) {
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 px-2 rounded-lg text-muted-foreground text-xs"
+              className="h-8 px-2 rounded-lg text-muted-foreground text-xs"
               onClick={() => setConfirmDelete(false)}
             >
               No
@@ -147,10 +170,10 @@ function CategoryCard({ cat }: { cat: Category }) {
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 w-7 p-0 rounded-lg text-muted-foreground hover:text-destructive"
+            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive"
             onClick={handleDelete}
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-4 h-4" />
           </Button>
         )}
       </div>
@@ -179,52 +202,92 @@ function AddCategoryRow() {
       <Button
         variant="outline"
         size="sm"
-        className="rounded-xl gap-1.5 text-muted-foreground w-full border-dashed"
+        className="rounded-xl gap-1.5 text-muted-foreground w-full border-dashed h-11"
         onClick={() => setOpen(true)}
       >
-        <Plus className="w-3.5 h-3.5" />
+        <Plus className="w-4 h-4" />
         Add Category
       </Button>
     );
   }
 
   return (
-    <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-primary bg-primary/5">
-      <Input
-        value={emoji}
-        onChange={(e) => setEmoji(e.target.value)}
-        className="w-14 rounded-lg text-center text-lg px-1"
-        maxLength={2}
-        placeholder="📌"
-      />
-      <Input
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="flex-1 rounded-lg"
-        placeholder="Category name"
-        autoFocus
-        onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setOpen(false); }}
-      />
-      <div className="flex gap-1.5 flex-wrap max-w-[120px]">
-        {COLOR_OPTIONS.map((c) => (
-          <button
-            key={c}
-            title={c}
-            onClick={() => setColor(c)}
-            className={cn(
-              "w-5 h-5 rounded-full transition-all hover:scale-110 border-2",
-              COLOR_MAP[c].dot,
-              color === c ? "border-foreground scale-110" : "border-transparent"
-            )}
+    <div className="rounded-xl border-2 border-dashed border-primary bg-primary/5 p-4 space-y-3">
+      {/* Row 1: Emoji + Name */}
+      <div className="flex items-center gap-3">
+        <div className="space-y-1 shrink-0">
+          <Label className="text-xs font-medium text-muted-foreground">Emoji</Label>
+          <Input
+            value={emoji}
+            onChange={(e) => setEmoji(e.target.value)}
+            className="w-14 h-10 rounded-xl text-center text-lg"
+            maxLength={2}
+            placeholder="📌"
           />
-        ))}
+        </div>
+        <div className="space-y-1 flex-1 min-w-0">
+          <Label className="text-xs font-medium text-muted-foreground">Name</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-xl h-10"
+            placeholder="e.g. Appointments, School, Fitness..."
+            autoFocus
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); if (e.key === "Escape") setOpen(false); }}
+          />
+        </div>
       </div>
-      <Button size="sm" className="rounded-lg bg-primary text-white text-xs" onClick={handleAdd} disabled={!name.trim()}>
-        Add
-      </Button>
-      <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
-        <X className="w-4 h-4" />
-      </button>
+
+      {/* Row 2: Color picker */}
+      <div className="space-y-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">Color</Label>
+        <div className="flex gap-2 flex-wrap">
+          {COLOR_OPTIONS.map((c) => (
+            <button
+              key={c}
+              title={c}
+              onClick={() => setColor(c)}
+              className={cn(
+                "w-7 h-7 rounded-full transition-all border-2",
+                COLOR_MAP[c].dot,
+                color === c ? "border-foreground scale-110 ring-2 ring-primary/20" : "border-transparent"
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Row 3: Preview + Actions */}
+      <div className="flex items-center gap-3 pt-1">
+        {name.trim() && (
+          <span className={cn(
+            "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+            (COLOR_MAP[color] ?? COLOR_MAP.teal).bg,
+            (COLOR_MAP[color] ?? COLOR_MAP.teal).text,
+          )}>
+            <span>{emoji}</span>
+            <span>{name.trim()}</span>
+          </span>
+        )}
+        <div className="flex gap-2 ml-auto">
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-xl"
+            onClick={() => { setOpen(false); setName(""); setEmoji("📌"); setColor("teal"); }}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            className="rounded-xl bg-primary text-white"
+            onClick={handleAdd}
+            disabled={!name.trim()}
+          >
+            <Plus className="w-4 h-4 mr-1" /> Add
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
