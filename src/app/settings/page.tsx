@@ -38,9 +38,13 @@ function CategoryCard({ cat }: { cat: Category }) {
   const usageCount = tasks.filter((t) => t.category === cat.id).length;
   const style = COLOR_MAP[cat.color] ?? COLOR_MAP.teal;
 
+  const [saved, setSaved] = useState(false);
+
   const handleSave = () => {
     updateCategory(cat.id, { name: editName.trim() || cat.name, emoji: editEmoji, color: editColor });
     setEditing(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const handleDelete = () => {
@@ -133,8 +137,14 @@ function CategoryCard({ cat }: { cat: Category }) {
       {/* Color dot */}
       <div className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", style.dot)} />
 
-      {/* Usage count */}
-      <span className="text-xs text-muted-foreground flex-1">{usageCount} task{usageCount !== 1 ? "s" : ""}</span>
+      {/* Usage count + saved indicator */}
+      <span className="text-xs text-muted-foreground flex-1">
+        {saved ? (
+          <span className="text-emerald-600 font-medium">✓ Saved!</span>
+        ) : (
+          <>{usageCount} task{usageCount !== 1 ? "s" : ""}</>
+        )}
+      </span>
 
       {/* Actions — always visible on mobile */}
       <div className="flex items-center gap-1">
