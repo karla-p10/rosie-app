@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth-context";
+import { DataInitializer } from "@/components/DataInitializer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,7 +32,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans`}>
-        {children}
+        <AuthProvider>
+          <DataInitializer />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

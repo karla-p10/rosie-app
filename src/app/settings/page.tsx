@@ -16,11 +16,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Camera, Calendar, Bell, Palette, Shield, RefreshCw,
-  CheckCircle2, ExternalLink, Plus, Trash2, Pencil, X, Check,
+  Camera, Calendar, RefreshCw,
+  CheckCircle2, ExternalLink, Plus, Trash2, Pencil, X, Check, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTasks, COLOR_MAP, type Category } from "@/lib/store";
+import { useAuth } from "@/lib/auth-context";
+import { createClient } from "@/utils/supabase/client";
 
 // Available color options for the category color picker
 const COLOR_OPTIONS = Object.keys(COLOR_MAP) as string[];
@@ -294,8 +296,15 @@ function AddCategoryRow() {
 
 export default function SettingsPage() {
   const { categories } = useTasks();
-  const [name, setName] = useState("Karla");
-  const [email, setEmail] = useState("karla@family.com");
+  const { user, profile, signOut, refreshProfile } = useAuth();
+
+  const [name, setName] = useState(
+    profile?.display_name ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.email ? user.email.split("@")[0] : "") ||
+    ""
+  );
+  const [email] = useState(profile?.email || user?.email || "");
   const [notifications, setNotifications] = useState({
     taskReminders: true,
     dailyDigest: true,
@@ -306,7 +315,15 @@ export default function SettingsPage() {
   const [calendarConnected] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (user) {
+      const supabase = createClient();
+      await supabase
+        .from("profiles")
+        .update({ display_name: name.trim(), updated_at: new Date().toISOString() })
+        .eq("id", user.id);
+      await refreshProfile();
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -329,10 +346,19 @@ export default function SettingsPage() {
             {/* Avatar */}
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Avatar className="w-16 h-16">
-                  <AvatarFallback className="bg-primary text-white text-xl font-bold">
-                    {name.charAt(0)}
-                  </AvatarFallback>
+                <Avatar className="w-16 h-16 overflow-hidden">
+                  {(profile?.avatar_url || (user?.user_metadata?.avatar_url as string | undefined)) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile?.avatar_url || (user?.user_metadata?.avatar_url as string)}
+                      alt={name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback className="bg-primary text-white text-xl font-bold">
+                      {name.charAt(0) || "?"}
+                    </AvatarFallback>
+                  )}
                 </Avatar>
                 <button className="absolute bottom-0 right-0 w-6 h-6 bg-primary rounded-full flex items-center justify-center border-2 border-background shadow-sm hover:bg-primary/90 transition-colors">
                   <Camera className="w-3 h-3 text-white" />
@@ -360,8 +386,8 @@ export default function SettingsPage() {
                 <Label className="text-sm font-medium">Email</Label>
                 <Input
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-xl"
+                  readOnly
+                  className="rounded-xl bg-muted/50 text-muted-foreground cursor-not-allowed"
                   type="email"
                   placeholder="your@email.com"
                 />
@@ -556,6 +582,16 @@ export default function SettingsPage() {
 
         {/* Account */}
         <SettingsSection title="Account">
+          <SettingsRow label="Sign Out" description="Sign out of your Rosie account">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => signOut()}
+            >
+              <LogOut className="w-3 h-3" /> Sign Out
+            </Button>
+          </SettingsRow>
           <SettingsRow label="Privacy Policy" description="How we handle your data">
             <Button variant="ghost" size="sm" className="rounded-xl text-xs gap-1 text-muted-foreground">
               View <ExternalLink className="w-3 h-3" />

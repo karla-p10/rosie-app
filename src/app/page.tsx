@@ -9,6 +9,7 @@ import { TaskCard } from "@/components/TaskCard";
 import { TaskModal } from "@/components/TaskModal";
 import { Button } from "@/components/ui/button";
 import { useTasks, type Task } from "@/lib/store";
+import { useAuth } from "@/lib/auth-context";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,13 @@ export default function DashboardPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editTask, setEditTask] = useState<Task | null>(null);
   const { tasks } = useTasks();
+  const { user, profile } = useAuth();
+
+  const firstName =
+    profile?.display_name?.split(" ")[0] ||
+    (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0] ||
+    (user?.email ? user.email.split("@")[0] : null) ||
+    "there";
 
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -70,7 +78,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
-              {greeting}, Karla! 👋
+              {greeting}, {firstName}! 👋
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
               {stats.done} of {stats.total} tasks done today. You&rsquo;ve got this.

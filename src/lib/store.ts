@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createClient } from "@/utils/supabase/client";
 
 // ─── Category ────────────────────────────────────────────────────────────────
 
@@ -39,7 +39,7 @@ export const DEFAULT_CATEGORIES: Category[] = [
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
-/** category is now a category.id (string) instead of a hardcoded union */
+/** category is a category.id (string) */
 export type TaskCategory = string;
 export type TaskStatus = "todo" | "in-progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
@@ -57,25 +57,59 @@ export interface Task {
   completedAt?: string;
 }
 
-// ─── Store ────────────────────────────────────────────────────────────────────
+// ─── DB row types ─────────────────────────────────────────────────────────────
 
-interface TaskStore {
-  tasks: Task[];
-  categories: Category[];
-
-  // Task actions
-  addTask: (task: Omit<Task, "id" | "createdAt">) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  toggleTaskStatus: (id: string) => void;
-
-  // Category actions
-  addCategory: (category: Omit<Category, "id">) => void;
-  updateCategory: (id: string, updates: Partial<Omit<Category, "id">>) => void;
-  deleteCategory: (id: string) => void;
+interface DbTask {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  category_id: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  due_date: string | null;
+  assignee: string | null;
+  created_at: string;
+  completed_at: string | null;
 }
 
-const generateId = () => Math.random().toString(36).slice(2, 9);
+interface DbCategory {
+  id: string;
+  user_id: string;
+  name: string;
+  emoji: string;
+  color: string;
+  sort_order: number;
+  created_at: string;
+}
+
+// ─── Mappers ──────────────────────────────────────────────────────────────────
+
+export function dbTaskToFrontend(t: DbTask): Task {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description ?? undefined,
+    category: t.category_id ?? "",
+    status: t.status,
+    priority: t.priority,
+    dueDate: t.due_date ?? undefined,
+    assignee: t.assignee ?? undefined,
+    createdAt: t.created_at,
+    completedAt: t.completed_at ?? undefined,
+  };
+}
+
+export function dbCategoryToFrontend(c: DbCategory): Category {
+  return {
+    id: c.id,
+    name: c.name,
+    emoji: c.emoji,
+    color: c.color,
+  };
+}
+
+// ─── Mock tasks (kept for reference, not loaded by default) ───────────────────
 
 const today = new Date();
 const fmt = (offsetDays: number) => {
@@ -107,181 +141,210 @@ export const MOCK_TASKS: Task[] = [
     assignee: "Karla",
     createdAt: new Date().toISOString(),
   },
-  {
-    id: "t3",
-    title: "Submit Q2 project proposal",
-    description: "Send to Sarah by EOD",
-    category: "work",
-    status: "in-progress",
-    priority: "high",
-    dueDate: fmt(0),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t4",
-    title: "Schedule Jake's dentist appointment",
-    description: "He's been complaining about his tooth again",
-    category: "kids",
-    status: "todo",
-    priority: "medium",
-    dueDate: fmt(1),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t5",
-    title: "Pay utility bills",
-    description: "Electric + internet due this week",
-    category: "home",
-    status: "todo",
-    priority: "high",
-    dueDate: fmt(2),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t6",
-    title: "30-min yoga session",
-    description: "Finally. Me time.",
-    category: "health",
-    status: "done",
-    priority: "low",
-    dueDate: fmt(-1),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-  },
-  {
-    id: "t7",
-    title: "Emma's science fair poster",
-    description: "Needs to be done by Friday. Volcanoes, apparently.",
-    category: "kids",
-    status: "in-progress",
-    priority: "high",
-    dueDate: fmt(3),
-    assignee: "Emma",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t8",
-    title: "Clean out the garage",
-    description: "Long overdue. Two Saturdays minimum.",
-    category: "home",
-    status: "todo",
-    priority: "low",
-    dueDate: fmt(7),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t9",
-    title: "Annual physical",
-    description: "Schedule with Dr. Martinez",
-    category: "health",
-    status: "todo",
-    priority: "medium",
-    dueDate: fmt(14),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t10",
-    title: "Book birthday venue",
-    description: "Jake turns 8 in 6 weeks — need to act fast",
-    category: "kids",
-    status: "todo",
-    priority: "high",
-    dueDate: fmt(5),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: "t11",
-    title: "Review HOA documents",
-    description: "Annual meeting next month",
-    category: "home",
-    status: "done",
-    priority: "low",
-    dueDate: fmt(-2),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-    completedAt: new Date().toISOString(),
-  },
-  {
-    id: "t12",
-    title: "Lunch with Maria",
-    description: "Catch up — it's been 3 months!",
-    category: "personal",
-    status: "todo",
-    priority: "low",
-    dueDate: fmt(4),
-    assignee: "Karla",
-    createdAt: new Date().toISOString(),
-  },
 ];
 
-export const useTasks = create<TaskStore>()(
-  persist(
-    (set) => ({
-      tasks: MOCK_TASKS,
-      categories: DEFAULT_CATEGORIES,
+// ─── Store ────────────────────────────────────────────────────────────────────
 
-      // ── Task actions ──────────────────────────────────────────────────────
-      addTask: (task) =>
-        set((state) => ({
-          tasks: [
-            ...state.tasks,
-            { ...task, id: generateId(), createdAt: new Date().toISOString() },
-          ],
-        })),
-      updateTask: (id, updates) =>
-        set((state) => ({
-          tasks: state.tasks.map((t) =>
-            t.id === id ? { ...t, ...updates } : t
-          ),
-        })),
-      deleteTask: (id) =>
-        set((state) => ({
-          tasks: state.tasks.filter((t) => t.id !== id),
-        })),
-      toggleTaskStatus: (id) =>
-        set((state) => ({
-          tasks: state.tasks.map((t) => {
-            if (t.id !== id) return t;
-            const next: TaskStatus =
-              t.status === "todo"
-                ? "in-progress"
-                : t.status === "in-progress"
-                ? "done"
-                : "todo";
-            return {
-              ...t,
-              status: next,
-              completedAt: next === "done" ? new Date().toISOString() : undefined,
-            };
-          }),
-        })),
+interface TaskStore {
+  tasks: Task[];
+  categories: Category[];
+  userId: string | null;
+  initialized: boolean;
 
-      // ── Category actions ──────────────────────────────────────────────────
-      addCategory: (category) =>
-        set((state) => ({
-          categories: [
-            ...state.categories,
-            { ...category, id: generateId() },
-          ],
-        })),
-      updateCategory: (id, updates) =>
-        set((state) => ({
-          categories: state.categories.map((c) =>
-            c.id === id ? { ...c, ...updates } : c
-          ),
-        })),
-      deleteCategory: (id) =>
-        set((state) => ({
-          categories: state.categories.filter((c) => c.id !== id),
-        })),
-    }),
-    { name: "rosie-tasks" }
-  )
-);
+  // Bulk setters (called on auth init)
+  setTasks: (tasks: Task[]) => void;
+  setCategories: (categories: Category[]) => void;
+  setUserId: (id: string) => void;
+  setInitialized: (v: boolean) => void;
+  clearStore: () => void;
+
+  // Task actions
+  addTask: (task: Omit<Task, "id" | "createdAt">) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
+  deleteTask: (id: string) => void;
+  toggleTaskStatus: (id: string) => void;
+
+  // Category actions
+  addCategory: (category: Omit<Category, "id">) => void;
+  updateCategory: (id: string, updates: Partial<Omit<Category, "id">>) => void;
+  deleteCategory: (id: string) => void;
+}
+
+export const useTasks = create<TaskStore>()((set, get) => ({
+  tasks: [],
+  categories: [],
+  userId: null,
+  initialized: false,
+
+  // ── Bulk setters ────────────────────────────────────────────────────────
+  setTasks: (tasks) => set({ tasks }),
+  setCategories: (categories) => set({ categories }),
+  setUserId: (userId) => set({ userId }),
+  setInitialized: (initialized) => set({ initialized }),
+  clearStore: () => set({ tasks: [], categories: [], userId: null, initialized: false }),
+
+  // ── Task actions ──────────────────────────────────────────────────────
+  addTask: (task) => {
+    const userId = get().userId;
+    const newId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const newTask: Task = { ...task, id: newId, createdAt: now };
+
+    // Optimistic update
+    set((state) => ({ tasks: [...state.tasks, newTask] }));
+
+    // Persist to Supabase
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("tasks").insert({
+        id: newId,
+        user_id: userId,
+        title: task.title,
+        description: task.description ?? null,
+        category_id: task.category || null,
+        status: task.status,
+        priority: task.priority,
+        due_date: task.dueDate ?? null,
+        assignee: task.assignee ?? null,
+        created_at: now,
+        completed_at: task.completedAt ?? null,
+      }).then(({ error }) => {
+        if (error) console.error("[store] addTask error:", error.message);
+      });
+    }
+  },
+
+  updateTask: (id, updates) => {
+    // Optimistic update
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
+    }));
+
+    // Persist to Supabase
+    const userId = get().userId;
+    if (userId) {
+      const supabase = createClient();
+      const dbUpdates: Record<string, unknown> = {};
+      if (updates.title !== undefined) dbUpdates.title = updates.title;
+      if (updates.description !== undefined) dbUpdates.description = updates.description ?? null;
+      if (updates.category !== undefined) dbUpdates.category_id = updates.category || null;
+      if (updates.status !== undefined) dbUpdates.status = updates.status;
+      if (updates.priority !== undefined) dbUpdates.priority = updates.priority;
+      if (updates.dueDate !== undefined) dbUpdates.due_date = updates.dueDate ?? null;
+      if (updates.assignee !== undefined) dbUpdates.assignee = updates.assignee ?? null;
+      if (updates.completedAt !== undefined) dbUpdates.completed_at = updates.completedAt ?? null;
+
+      supabase.from("tasks").update(dbUpdates).eq("id", id).then(({ error }) => {
+        if (error) console.error("[store] updateTask error:", error.message);
+      });
+    }
+  },
+
+  deleteTask: (id) => {
+    // Optimistic update
+    set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) }));
+
+    // Persist to Supabase
+    const userId = get().userId;
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("tasks").delete().eq("id", id).then(({ error }) => {
+        if (error) console.error("[store] deleteTask error:", error.message);
+      });
+    }
+  },
+
+  toggleTaskStatus: (id) => {
+    const task = get().tasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const next: TaskStatus =
+      task.status === "todo"
+        ? "in-progress"
+        : task.status === "in-progress"
+        ? "done"
+        : "todo";
+
+    const completedAt = next === "done" ? new Date().toISOString() : undefined;
+
+    // Optimistic update
+    set((state) => ({
+      tasks: state.tasks.map((t) =>
+        t.id === id ? { ...t, status: next, completedAt } : t
+      ),
+    }));
+
+    // Persist to Supabase
+    const userId = get().userId;
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("tasks").update({
+        status: next,
+        completed_at: completedAt ?? null,
+      }).eq("id", id).then(({ error }) => {
+        if (error) console.error("[store] toggleTaskStatus error:", error.message);
+      });
+    }
+  },
+
+  // ── Category actions ──────────────────────────────────────────────────
+  addCategory: (category) => {
+    const userId = get().userId;
+    const newId = crypto.randomUUID();
+    const sortOrder = get().categories.length;
+
+    // Optimistic update
+    set((state) => ({
+      categories: [...state.categories, { ...category, id: newId }],
+    }));
+
+    // Persist to Supabase
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("categories").insert({
+        id: newId,
+        user_id: userId,
+        name: category.name,
+        emoji: category.emoji,
+        color: category.color,
+        sort_order: sortOrder,
+      }).then(({ error }) => {
+        if (error) console.error("[store] addCategory error:", error.message);
+      });
+    }
+  },
+
+  updateCategory: (id, updates) => {
+    // Optimistic update
+    set((state) => ({
+      categories: state.categories.map((c) =>
+        c.id === id ? { ...c, ...updates } : c
+      ),
+    }));
+
+    // Persist to Supabase
+    const userId = get().userId;
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("categories").update(updates).eq("id", id).then(({ error }) => {
+        if (error) console.error("[store] updateCategory error:", error.message);
+      });
+    }
+  },
+
+  deleteCategory: (id) => {
+    // Optimistic update
+    set((state) => ({
+      categories: state.categories.filter((c) => c.id !== id),
+    }));
+
+    // Persist to Supabase
+    const userId = get().userId;
+    if (userId) {
+      const supabase = createClient();
+      supabase.from("categories").delete().eq("id", id).then(({ error }) => {
+        if (error) console.error("[store] deleteCategory error:", error.message);
+      });
+    }
+  },
+}));

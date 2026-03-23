@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useTasks } from "@/lib/store";
+import { useAuth } from "@/lib/auth-context";
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -29,6 +31,28 @@ interface SidebarProps {
 
 export function Sidebar({ onClose, mobile }: SidebarProps) {
   const pathname = usePathname();
+  const tasks = useTasks((s) => s.tasks);
+  const { user, profile } = useAuth();
+
+  const activeTasks = tasks.filter((t) => t.status !== "done").length;
+
+  // Display name: profile.display_name > user.user_metadata.name > email prefix > "You"
+  const displayName =
+    profile?.display_name ||
+    (user?.user_metadata?.full_name as string | undefined) ||
+    (user?.email ? user.email.split("@")[0] : null) ||
+    "You";
+
+  const displayEmail = profile?.email || user?.email || "";
+
+  // Avatar initial
+  const initial = displayName.charAt(0).toUpperCase();
+
+  // Avatar URL from profile or OAuth provider
+  const avatarUrl =
+    profile?.avatar_url ||
+    (user?.user_metadata?.avatar_url as string | undefined) ||
+    null;
 
   return (
     <aside className="flex flex-col h-full bg-sidebar text-sidebar-foreground w-64">
@@ -63,7 +87,6 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
           const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
 
           if (special) {
-            // Brain Dump — give it a special coral/accent treatment
             return (
               <Link
                 key={href}
@@ -97,12 +120,12 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
             >
               <Icon className={cn("w-4 h-4 flex-shrink-0", active ? "text-white" : "")} />
               {label}
-              {label === "Tasks" && (
+              {label === "Tasks" && activeTasks > 0 && (
                 <span className={cn(
                   "ml-auto text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
                   active ? "bg-white/20 text-white" : "bg-sidebar-accent text-sidebar-foreground/60"
                 )}>
-                  12
+                  {activeTasks}
                 </span>
               )}
             </Link>
@@ -110,15 +133,20 @@ export function Sidebar({ onClose, mobile }: SidebarProps) {
         })}
       </nav>
 
-      {/* Footer */}
+      {/* Footer — user info */}
       <div className="px-4 py-4 border-t border-sidebar-border">
         <div className="flex items-center gap-2 px-1 py-1 rounded-xl hover:bg-sidebar-accent cursor-pointer transition-colors group">
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-            <span className="text-white text-xs font-bold">K</span>
+          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-white text-xs font-bold">{initial}</span>
+            )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-sidebar-foreground truncate">Karla</div>
-            <div className="text-[11px] text-sidebar-foreground/50 truncate">karla@family.com</div>
+            <div className="text-sm font-medium text-sidebar-foreground truncate">{displayName}</div>
+            <div className="text-[11px] text-sidebar-foreground/50 truncate">{displayEmail}</div>
           </div>
           <Sparkles className="w-3.5 h-3.5 text-sidebar-foreground/30 group-hover:text-primary transition-colors flex-shrink-0" />
         </div>
